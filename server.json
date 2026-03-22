@@ -1,0 +1,35 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "eu.ansvar/croatian-financial-regulation-mcp",
+  "description": "Query Croatian HANFA pravilnici, smjernice, HNB odluke, and enforcement actions",
+  "repository": {
+    "url": "https://github.com/Ansvar-Systems/croatian-financial-regulation-mcp",
+    "source": "github"
+  },
+  "homepage": "https://ansvar.eu",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "keywords": [
+    "hanfa",
+    "hnb",
+    "croatian-financial-regulation",
+    "capital-markets",
+    "investment-funds",
+    "mifid",
+    "compliance",
+    "enforcement",
+    "mcp",
+    "ansvar",
+    "croatia"
+  ],
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@ansvar/croatian-financial-regulation-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
