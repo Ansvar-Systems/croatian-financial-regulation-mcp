@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "mcp_name": "croatian-financial-regulation-mcp",
+  "generated": "2026-04-05",
+  "sourcebooks": [
+    {
+      "id": "HANFA_PRAVILNICI",
+      "name": "HANFA Pravilnici (Rulebooks)",
+      "authority": "HANFA — Hrvatska agencija za nadzor financijskih usluga",
+      "url": "https://www.hanfa.hr/propisi-i-nadzor/propisi/",
+      "license": "Public domain — official Croatian government publication",
+      "document_count_approximate": 50,
+      "ingest_pipeline": "scripts/ingest-hanfa.ts",
+      "status": "active",
+      "notes": "HANFA rulebooks covering investment services (ZTK), capital markets, insurance, and pension funds. 1229+ URLs processed by the ingest pipeline."
+    },
+    {
+      "id": "HANFA_SMJERNICE",
+      "name": "HANFA Smjernice (Guidelines)",
+      "authority": "HANFA — Hrvatska agencija za nadzor financijskih usluga",
+      "url": "https://www.hanfa.hr/propisi-i-nadzor/propisi/",
+      "license": "Public domain — official Croatian government publication",
+      "document_count_approximate": null,
+      "ingest_pipeline": "scripts/ingest-hanfa.ts",
+      "status": "active",
+      "notes": "HANFA supervisory guidelines and official positions (službena stajališta)."
+    },
+    {
+      "id": "HNB_ODLUKE",
+      "name": "HNB Odluke (Decisions)",
+      "authority": "HNB — Hrvatska narodna banka (Croatian National Bank)",
+      "url": "https://www.hnb.hr/temeljne-funkcije/prudencijalna-regulativa/regulatorni-okvir",
+      "license": "Public domain — official Croatian government publication",
+      "document_count_approximate": null,
+      "ingest_pipeline": "scripts/ingest-hanfa.ts",
+      "status": "partial",
+      "notes": "HNB decisions on regulatory capital (regulatorni kapital), liquidity, and banking supervision. Coverage is partial and ongoing."
+    }
+  ],
+  "known_gaps": [
+    "HNB banking decision coverage is partial — systematic crawling is ongoing",
+    "Historical (superseded) versions of pravilnici are not systematically stored",
+    "HANFA enforcement actions are partially indexed"
+  ],
+  "staleness_threshold_days": 90
+}
