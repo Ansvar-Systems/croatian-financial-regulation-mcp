@@ -15,7 +15,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
@@ -26,7 +26,6 @@ import {
   searchEnforcement,
   checkProvisionCurrency,
 } from "./db.js";
-import { buildCitation } from "./citation.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -42,6 +41,38 @@ try {
 }
 
 const SERVER_NAME = "croatian-financial-regulation-mcp";
+
+const DISCLAIMER =
+  "This tool provides regulatory data for research purposes only. It is NOT legal or regulatory advice. Always verify against official HANFA and HNB publications before making compliance decisions.";
+const COPYRIGHT = "© Ansvar Systems AB. Data sourced from HANFA and HNB official publications.";
+const SOURCE_URLS = ["https://www.hanfa.hr/", "https://www.hnb.hr/"];
+
+const DB_PATH = process.env["HANFA_DB_PATH"] ?? "data/hanfa.db";
+const STALENESS_THRESHOLD_DAYS = 90;
+
+function getDbAge(): { last_updated: string | null; age_days: number | null; is_stale: boolean } {
+  try {
+    const stats = statSync(DB_PATH);
+    const ageDays = Math.floor((Date.now() - stats.mtimeMs) / (1000 * 60 * 60 * 24));
+    return {
+      last_updated: stats.mtime.toISOString(),
+      age_days: ageDays,
+      is_stale: ageDays > STALENESS_THRESHOLD_DAYS,
+    };
+  } catch {
+    return { last_updated: null, age_days: null, is_stale: false };
+  }
+}
+
+function buildMeta() {
+  const dbAge = getDbAge();
+  return {
+    disclaimer: DISCLAIMER,
+    copyright: COPYRIGHT,
+    source_urls: SOURCE_URLS,
+    data_age: dbAge.last_updated ?? "unknown",
+  };
+}
 
 // Tool definitions
 
@@ -151,6 +182,26 @@ const TOOLS = [
       required: [],
     },
   },
+  {
+    name: "hr_fin_list_sources",
+    description:
+      "List authoritative data sources used by this MCP server, with provenance metadata (authority, URL, license, coverage).",
+    inputSchema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "hr_fin_check_data_freshness",
+    description:
+      "Check data freshness for each source. Reports database age, staleness status, and provides update instructions.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
 ];
 
 // Zod schemas
@@ -218,7 +269,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           status: parsed.status,
           limit: parsed.limit,
         });
-        return textContent({ results, count: results.length });
+        return textContent({ results, count: results.length, _meta: buildMeta() });
       }
 
       case "hr_fin_get_regulation": {
@@ -229,21 +280,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             `Provision not found: ${parsed.sourcebook} ${parsed.reference}`,
           );
         }
-        return textContent({
-          ...(typeof provision === 'object' ? provision : { data: provision }),
-          _citation: buildCitation(
-            (provision as any).reference || parsed.reference,
-            (provision as any).title || (provision as any).subject || '',
-            'hr_fin_get_regulation',
-            { sourcebook: parsed.sourcebook, reference: parsed.reference },
-            (provision as any).url || null,
-          ),
-        });
+        return textContent({ ...provision, _meta: buildMeta() });
       }
 
       case "hr_fin_list_sourcebooks": {
         const sourcebooks = listSourcebooks();
-        return textContent({ sourcebooks, count: sourcebooks.length });
+        return textContent({ sourcebooks, count: sourcebooks.length, _meta: buildMeta() });
       }
 
       case "hr_fin_search_enforcement": {
@@ -253,13 +295,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           action_type: parsed.action_type,
           limit: parsed.limit,
         });
-        return textContent({ results, count: results.length });
+        return textContent({ results, count: results.length, _meta: buildMeta() });
       }
 
       case "hr_fin_check_currency": {
         const parsed = CheckCurrencyArgs.parse(args);
         const currency = checkProvisionCurrency(parsed.reference);
-        return textContent(currency);
+        return textContent({ ...currency, _meta: buildMeta() });
       }
 
       case "hr_fin_about": {
@@ -270,6 +312,60 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             "Croatian HANFA and HNB (Hrvatska narodna banka) financial regulation MCP server. Provides access to HANFA pravilnici, smjernice, HNB decisions, and enforcement actions.",
           data_source: "HANFA (https://www.hanfa.hr/) and HNB (https://www.hnb.hr/)",
           tools: TOOLS.map((t) => ({ name: t.name, description: t.description })),
+          _meta: buildMeta(),
+        });
+      }
+
+      case "hr_fin_list_sources": {
+        return textContent({
+          sources: [
+            {
+              id: "HANFA_PRAVILNICI",
+              name: "HANFA Pravilnici (Rulebooks)",
+              authority: "HANFA — Hrvatska agencija za nadzor financijskih usluga",
+              url: "https://www.hanfa.hr/propisi-i-nadzor/propisi/",
+              license: "Public domain — official Croatian government publication",
+              coverage: "HANFA rulebooks (pravilnici) covering investment services, capital markets, insurance, and pension funds",
+              update_frequency: "As published by HANFA",
+            },
+            {
+              id: "HANFA_SMJERNICE",
+              name: "HANFA Smjernice (Guidelines)",
+              authority: "HANFA — Hrvatska agencija za nadzor financijskih usluga",
+              url: "https://www.hanfa.hr/propisi-i-nadzor/propisi/",
+              license: "Public domain — official Croatian government publication",
+              coverage: "HANFA supervisory guidelines and recommendations",
+              update_frequency: "As published by HANFA",
+            },
+            {
+              id: "HNB_ODLUKE",
+              name: "HNB Odluke (Decisions)",
+              authority: "HNB — Hrvatska narodna banka (Croatian National Bank)",
+              url: "https://www.hnb.hr/temeljne-funkcije/prudencijalna-regulativa/regulatorni-okvir",
+              license: "Public domain — official Croatian government publication",
+              coverage: "HNB decisions on regulatory capital, liquidity, and banking supervision",
+              update_frequency: "As published by HNB",
+            },
+          ],
+          _meta: buildMeta(),
+        });
+      }
+
+      case "hr_fin_check_data_freshness": {
+        const dbAge = getDbAge();
+        return textContent({
+          database_path: DB_PATH,
+          last_updated: dbAge.last_updated ?? "unknown",
+          age_days: dbAge.age_days,
+          staleness_threshold_days: STALENESS_THRESHOLD_DAYS,
+          is_stale: dbAge.is_stale,
+          status: dbAge.last_updated === null
+            ? "database_not_found"
+            : dbAge.is_stale
+              ? "stale"
+              : "fresh",
+          update_instructions: "Run 'npm run ingest' to fetch new regulatory data from HANFA and HNB.",
+          _meta: buildMeta(),
         });
       }
 
